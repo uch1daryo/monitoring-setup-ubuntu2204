@@ -1,0 +1,91 @@
+---
+- name: get stats of /root/prometheus-{{ prometheus_ver }}.linux-amd64.tar.gz
+  stat:
+    path: /root/prometheus-{{ prometheus_ver }}.linux-amd64.tar.gz
+  register: prometheus_tar_gz
+
+- name: download prometheus-{{ prometheus_ver }}.linux-amd64.tar.gz
+  get_url:
+    url: https://github.com/prometheus/prometheus/releases/download/v{{ prometheus_ver }}/prometheus-{{ prometheus_ver }}.linux-amd64.tar.gz
+    dest: /root/
+    checksum: sha256:{{ prometheus_sha }}
+  when: not prometheus_tar_gz.stat.exists
+
+- name: update prometheus_tar_gz
+  stat:
+    path: /root/prometheus-{{ prometheus_ver }}.linux-amd64.tar.gz
+  register: prometheus_tar_gz
+
+- name: get stats of /opt/prometheus-{{ prometheus_ver }}.linux-amd64
+  stat:
+    path: /opt/prometheus-{{ prometheus_ver }}.linux-amd64
+  register: opt_prometheus
+
+- name: unarchive prometheus files
+  unarchive:
+    src: /root/prometheus-{{ prometheus_ver }}.linux-amd64.tar.gz
+    dest: /opt/
+    owner: root
+    group: root
+    remote_src: yes
+  when:
+    - prometheus_tar_gz.stat.exists
+    - not opt_prometheus.stat.exists
+
+- name: pause for 5 seconds
+  pause:
+    seconds: 5
+
+- name: update opt_prometheus
+  stat:
+    path: /opt/prometheus-{{ prometheus_ver }}.linux-amd64
+  register: opt_prometheus
+
+- name: create symbolic link to /opt/prometheus-{{ prometheus_ver }}.linux-amd64
+  file:
+    src: /opt/prometheus-{{ prometheus_ver }}.linux-amd64
+    dest: /opt/prometheus
+    owner: root
+    group: root
+    state: link
+  when: opt_prometheus.stat.exists
+
+- name: copy prometheus.yml
+  copy:
+    src: files/prometheus.yml
+    dest: /opt/prometheus/prometheus.yml
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: copy rules.yml
+  copy:
+    src: files/rules.yml
+    dest: /opt/prometheus/rules.yml
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: copy prometheus.service
+  copy:
+    src: files/prometheus.service
+    dest: /etc/systemd/system/prometheus.service
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: reread configs
+  systemd:
+    daemon_reload: yes
+
+- name: get stats of /etc/systemd/system/prometheus.service
+  stat:
+    path: /etc/systemd/system/prometheus.service
+  register: prometheus_service
+
+- name: start and enable prometheus
+  service:
+    name: prometheus
+    state: started
+    enabled: yes
+  when: prometheus_service.stat.exists

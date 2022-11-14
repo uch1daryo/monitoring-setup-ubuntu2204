@@ -1,0 +1,83 @@
+---
+- name: get stats of /root/alertmanager-{{ alertmanager_ver }}.linux-amd64.tar.gz
+  stat:
+    path: /root/alertmanager-{{ alertmanager_ver }}.linux-amd64.tar.gz
+  register: alertmanager_tar_gz
+
+- name: download alertmanager-{{ alertmanager_ver }}.linux-amd64.tar.gz
+  get_url:
+    url: https://github.com/prometheus/alertmanager/releases/download/v{{ alertmanager_ver }}/alertmanager-{{ alertmanager_ver }}.linux-amd64.tar.gz
+    dest: /root/
+    checksum: sha256:{{ alertmanager_sha }}
+  when: not alertmanager_tar_gz.stat.exists
+
+- name: update alertmanager_tar_gz
+  stat:
+    path: /root/alertmanager-{{ alertmanager_ver }}.linux-amd64.tar.gz
+  register: alertmanager_tar_gz
+
+- name: get stats of /opt/alertmanager-{{ alertmanager_ver }}.linux-amd64
+  stat:
+    path: /opt/alertmanager-{{ alertmanager_ver }}.linux-amd64
+  register: opt_alertmanager
+
+- name: unarchive alertmanager files
+  unarchive:
+    src: /root/alertmanager-{{ alertmanager_ver }}.linux-amd64.tar.gz
+    dest: /opt/
+    owner: root
+    group: root
+    remote_src: yes
+  when:
+    - alertmanager_tar_gz.stat.exists
+    - not opt_alertmanager.stat.exists
+
+- name: pause for 5 seconds
+  pause:
+    seconds: 5
+
+- name: update opt_alertmanager
+  stat:
+    path: /opt/alertmanager-{{ alertmanager_ver }}.linux-amd64
+  register: opt_alertmanager
+
+- name: create symbolic link to /opt/alertmanager-{{ alertmanager_ver }}.linux-amd64
+  file:
+    src: /opt/alertmanager-{{ alertmanager_ver }}.linux-amd64
+    dest: /opt/alertmanager
+    owner: root
+    group: root
+    state: link
+  when: opt_alertmanager.stat.exists
+
+- name: template to /opt/alertmanager/alertmanager.yml
+  template:
+    src: templates/alertmanager.yml.j2
+    dest: /opt/alertmanager/alertmanager.yml
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: copy alertmanager.service
+  copy:
+    src: files/alertmanager.service
+    dest: /etc/systemd/system/alertmanager.service
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: reread configs
+  systemd:
+    daemon_reload: yes
+
+- name: get stats of /etc/systemd/system/alertmanager.service
+  stat:
+    path: /etc/systemd/system/alertmanager.service
+  register: alertmanager_service
+
+- name: start and enable alertmanager
+  service:
+    name: alertmanager
+    state: started
+    enabled: yes
+  when: alertmanager_service.stat.exists

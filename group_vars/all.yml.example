@@ -1,0 +1,17 @@
+ansible_ssh_user: ubuntu
+ansible_become: yes
+
+prometheus_ver: 2.37.2
+prometheus_sha: 7f38e8dd9944128422caee00d1154a33f725ad11d75a3ed36de9d74d40f63e34
+
+alertmanager_ver: 0.24.0
+alertmanager_sha: 6fa982232ae7be5524f5b3cd4e90b7c6a75086368200c917644eaa3e806555dc
+
+smtp_smarthost: smtp.example.com
+smtp_from: sender_username@example.com
+smtp_auth_username: sender_username
+smtp_auth_password: password
+smtp_to: reciever_username@example.com
+
+grafana_admin_user: admin
+grafana_admin_password: secret

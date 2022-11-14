@@ -1,0 +1,8 @@
+---
+- hosts: monitoringserver
+  gather_facts: no
+  roles:
+    - common
+    - prometheus
+    - alertmanager
+    - grafana

@@ -1,0 +1,68 @@
+---
+- name: install required packages
+  apt:
+    pkg:
+    - apt-transport-https
+    - software-properties-common
+    - wget
+
+- name: add grafana keyring file
+  apt_key:
+    url: https://packages.grafana.com/gpg.key
+    keyring: /usr/share/keyrings/grafana.key
+
+- name: add grafana repository
+  apt_repository:
+    repo: "deb [signed-by=/usr/share/keyrings/grafana.key] https://packages.grafana.com/oss/deb stable main"
+    state: present
+    filename: grafana
+
+- name: get stats of /etc/apt/sources.list.d/grafana.list
+  stat:
+    path: /etc/apt/sources.list.d/grafana.list
+  register: grafana_list
+
+- name: install grafana
+  apt:
+    name: grafana
+  when: grafana_list.stat.exists
+
+- name: gather package facts
+  package_facts:
+
+- name: get stats of grafana.ini.orig
+  stat:
+    path: /etc/grafana/grafana.ini.orig
+  register: grafana_ini_orig
+
+- name: backup original grafana.ini
+  copy:
+    src: /etc/grafana/grafana.ini
+    dest: /etc/grafana/grafana.ini.orig
+    owner: root
+    group: grafana
+    mode: '0640'
+    backup: yes
+    remote_src: yes
+  when:
+    - "'grafana' in ansible_facts.packages"
+    - not grafana_ini_orig.stat.exists
+
+- name: template to /etc/grafana/grafana.ini
+  template:
+    src: templates/grafana.ini.j2
+    dest: /etc/grafana/grafana.ini
+    owner: root
+    group: grafana
+    mode: '0640'
+
+- name: reread configs
+  systemd:
+    daemon_reload: yes
+
+- name: start and enable grafana-server
+  service:
+    name: grafana-server
+    state: started
+    enabled: yes
+  when: "'grafana' in ansible_facts.packages"
