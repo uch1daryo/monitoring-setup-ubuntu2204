@@ -1,0 +1,7 @@
+---
+- name: restart alertmanager
+  service:
+    name: alertmanager
+    state: restarted
+  listen: "restart alertmanager"
+  when: alertmanager_service.stat.exists
