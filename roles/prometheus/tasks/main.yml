@@ -57,6 +57,7 @@
     owner: root
     group: root
     mode: '0644'
+  notify: "restart prometheus"
 
 - name: copy rules.yml
   copy:
